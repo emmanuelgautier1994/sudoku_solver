@@ -106,15 +106,15 @@ class SudokuGrid
       print_possibilities(new_grid) if verbose
 
       if new_grid == @grid
-        puts "========> Zero progress made after iteration #{i} 😭 Abandoning solve"
+        puts "==> Zero progress made after iteration #{i} 😭 Abandoning solve"
         break
       end
 
       @grid = new_grid
-      puts '-'
+      puts '-' if verbose
       print if verbose
 
-      puts "========> #{number_of_solved_cells} / 81 cells solved after iteration #{i}"
+      puts "==> #{number_of_solved_cells} / 81 cells solved after iteration #{i}"
     end
 
     print_final_state(i)
