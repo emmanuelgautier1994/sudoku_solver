@@ -70,30 +70,34 @@ class SudokuGrid
       i += 1
       puts "======== Start iteration #{i} ========"
 
-      new_grid = @grid.dup
-
-      solved_cells = new_grid.filter{|_,value| value.is_a?(Integer)}
-
+      grid_before_iteration = @grid.clone
+      
       # Remove illegal possibilities
-      solved_cells.each do |(cell_x,cell_y), value|
-        cell_row = (0...9).to_a.map{|x| [x,cell_y]}
-        cell_column = (0...9).to_a.map{|y| [cell_x,y]}
-        cell_region = REGIONS.find{|region| region.include?([cell_x,cell_y])}
-        target_coordinates = Set[*cell_row, *cell_column, *cell_region]
-        
-        target_coordinates.each do |(x,y)|
-          next if new_grid[[x,y]].is_a?(Integer)
-          new_grid[[x,y]].subtract([value])
-          if(new_grid[[x,y]].size == 1)
-            new_grid[[x,y]] = new_grid[[x,y]].to_a.first
+      grid_before_removing_illegal_possibilities = nil
+      while(grid_before_removing_illegal_possibilities != @grid)
+        grid_before_removing_illegal_possibilities = @grid.clone
+        solved_cells = @grid.filter{|_,value| value.is_a?(Integer)}
+        solved_cells.each do |(cell_x,cell_y), value|
+          cell_row = (0...9).to_a.map{|x| [x,cell_y]}
+          cell_column = (0...9).to_a.map{|y| [cell_x,y]}
+          cell_region = REGIONS.find{|region| region.include?([cell_x,cell_y])}
+          target_coordinates = Set[*cell_row, *cell_column, *cell_region]
+          
+          target_coordinates.each do |(x,y)|
+            next if @grid[[x,y]].is_a?(Integer)
+            @grid[[x,y]] -= Set.new([value])
+            if(@grid[[x,y]].size == 1)
+              @grid[[x,y]] = @grid[[x,y]].to_a.first
+            end
           end
         end
       end
 
+
       # Solve rows, columns and cells
       [ROWS,COLUMNS,REGIONS].each do |collection|
         collection.each do |cells|
-          solved_values = cells.map{|cell| new_grid[cell]}.filter{|value| value.is_a?(Integer)}
+          solved_values = cells.map{|cell| @grid[cell]}.filter{|value| value.is_a?(Integer)}
           remaining_values = (Set.new(1..9) - Set.new(solved_values)).to_a
 
           next unless remaining_values.size > 1
@@ -101,31 +105,33 @@ class SudokuGrid
           (1...remaining_values.size).each do |subset_size|
             subsets = remaining_values.combination(subset_size).to_a
             subsets.each do |subset|
-              cells_matching_subset = cells.filter{|cell| new_grid[cell].is_a?(Set) && Set.new(subset).intersect?(new_grid[cell])}
+              cells_matching_subset = cells.filter{|cell| @grid[cell].is_a?(Set) && Set.new(subset).intersect?(@grid[cell])}
 
               next unless cells_matching_subset.size == subset.size
-              next unless subset.all?{|value| cells_matching_subset.any?{|cell| new_grid[cell].include?(value)}}
+              next unless subset.all?{|value| cells_matching_subset.any?{|cell| @grid[cell].include?(value)}}
 
-              puts "#{cells_matching_subset.size} cell#{cells_matching_subset.size > 1 ? 's' : ''} matching #{subset.to_s}!" if verbose
+              if verbose
+                puts "#{cells_matching_subset.size} cell#{cells_matching_subset.size > 1 ? 's' : ''} matching #{subset.to_s}!"
+                cells.each{|cell| puts "-> Cell #{cell} has possibilities #{@grid[cell]}#{cells_matching_subset.include?(cell) ? ' 👍' : ''}"}
+              end
 
               cells_matching_subset.each do |cell|
-                new_set = new_grid[cell] & Set.new(subset)
-                if(new_set != new_grid[cell] && verbose) then puts "#{new_grid[cell].to_a} => #{new_set.to_a} at coordinates #{cell}" end
-                new_grid[cell] = new_set.size == 1 ? new_set.to_a.first : new_set
+                new_set = @grid[cell] & Set.new(subset)
+                if(new_set != @grid[cell] && verbose) then puts "#{@grid[cell].to_a} => #{new_set.to_a} at coordinates #{cell}" end
+                @grid[cell] = new_set.size == 1 ? new_set.to_a.first : new_set
               end
             end
           end
         end
       end
 
-      print_possibilities(new_grid) if verbose
+      print_possibilities if verbose
 
-      if new_grid == @grid
+      if @grid == grid_before_iteration
         puts "==> Zero progress made after iteration #{i} 😭 Abandoning solve"
         break
       end
 
-      @grid = new_grid
       puts '-' if verbose
       print if verbose
 
