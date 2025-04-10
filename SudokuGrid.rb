@@ -93,12 +93,27 @@ class SudokuGrid
       # Solve rows, columns and cells
       [ROWS,COLUMNS,REGIONS].each do |collection|
         collection.each do |cells|
-          solved_values = cells.map{|(x,y)| new_grid[[x,y]]}.filter{|value| value.is_a?(Integer)}
-          remaining_values = Set.new(1..9) - Set.new(solved_values)
+          solved_values = cells.map{|cell| new_grid[cell]}.filter{|value| value.is_a?(Integer)}
+          remaining_values = (Set.new(1..9) - Set.new(solved_values)).to_a
 
-          remaining_values.each do |value|
-            possible_cells = cells.filter{|(x,y)| new_grid[[x,y]].is_a?(Set) && new_grid[[x,y]].include?(value)}
-            if(possible_cells.size == 1) then new_grid[possible_cells.first] = value end
+          next unless remaining_values.size > 1
+
+          (1...remaining_values.size).each do |subset_size|
+            subsets = remaining_values.combination(subset_size).to_a
+            subsets.each do |subset|
+              cells_matching_subset = cells.filter{|cell| new_grid[cell].is_a?(Set) && Set.new(subset).intersect?(new_grid[cell])}
+
+              next unless cells_matching_subset.size == subset.size
+              next unless subset.all?{|value| cells_matching_subset.any?{|cell| new_grid[cell].include?(value)}}
+
+              puts "#{cells_matching_subset.size} cell#{cells_matching_subset.size > 1 ? 's' : ''} matching #{subset.to_s}!" if verbose
+
+              cells_matching_subset.each do |cell|
+                new_set = new_grid[cell] & Set.new(subset)
+                if(new_set != new_grid[cell] && verbose) then puts "#{new_grid[cell].to_a} => #{new_set.to_a} at coordinates #{cell}" end
+                new_grid[cell] = new_set.size == 1 ? new_set.to_a.first : new_set
+              end
+            end
           end
         end
       end
